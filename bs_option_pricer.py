@@ -1,26 +1,37 @@
-"""
-Black-Scholes option pricer to calculate the price of a European call or put option using the Black-Scholes formula.
-
-Inputs:
-    S: stock price
-    K: strike price
-    r: risk-free rate
-    q: dividend yield
-    sigma: volatility
-    T: time to expiration
-    option_type: call or put
-
-Outputs:
-    price: option price
-    
-"""
-
 import math
 from scipy.stats import norm
 
+def bsm_option_pricer(S, K, r, q, sigma, T):
+    """
+    Calculate the price of a European call or put option using the Black-Scholes-Merton formula.
+    
+        args:
+            S: stock price
+            K: strike price
+            r: risk-free rate
+            q: dividend yield
+            sigma: volatility
+            T: time to expiration
+            
+        Output:
+            call_price: call option price
+            put_price: put option price
+    """
+
+    call_price = calc_call_price(S, K, r, q, sigma, T)
+    put_price = calc_put_price(S, K, r, q, sigma, T)
+    
+    prices = {
+        "call_price": call_price,
+        "put_price": put_price
+    }
+    
+    return prices
+
+
 def calc_call_price(S, K, r, q, sigma, T):
     """
-    Calculate the price of a European call option using the Black-Scholes formula.
+    Calculate the price of a European call option using the Black-Scholes-Merton formula.
     
     p1 = S * e^(-q*T) * N(d1), where N(d1) is the cumulative distribution function of the standard normal distribution.
     
@@ -51,7 +62,7 @@ def calc_call_price(S, K, r, q, sigma, T):
     
 def calc_put_price(S, K, r, q, sigma, T):
     """
-    Calculate the price of a European put option using the Black-Scholes formula.
+    Calculate the price of a European put option using the Black-Scholes-Merton formula.
     
     p1 = K * e^(-r*T) * N(-d2), where N(-d2) is the cumulative distribution function of the standard normal distribution.
     
@@ -82,7 +93,7 @@ def calc_put_price(S, K, r, q, sigma, T):
     
 def calc_d1(S, K, r, q, sigma, T):
     """
-    Calculate d1 in the Black-Scholes formula.
+    Calculate d1 in the Black-Scholes-Merton formula.
     
     args:
         S: stock price
@@ -104,7 +115,7 @@ def calc_d1(S, K, r, q, sigma, T):
     
 def calc_d2(d1, sigma, T):
     """
-    Calculate d2 in the Black-Scholes formula.
+    Calculate d2 in the Black-Scholes-Merton formula.
     
     args:
         d1: d1 value
@@ -119,15 +130,13 @@ def calc_d2(d1, sigma, T):
 
 
 underlying_price = 100
-call_strike_price = 90
-put_strike_price = 110
+strike_price = 102.8
 volatility = 0.15
 risk_free_rate = 0.05
 dividend_yield = 0.03
 time_to_expiration = 1/24
 
-call_price = calc_call_price(underlying_price, call_strike_price, risk_free_rate, dividend_yield, volatility, time_to_expiration)
-put_price = calc_put_price(underlying_price, put_strike_price, risk_free_rate, dividend_yield, volatility, time_to_expiration)
+option_prices = bsm_option_pricer(underlying_price, strike_price, risk_free_rate, dividend_yield, volatility, time_to_expiration)
 
-print(f"Call price: {call_price:.2f}")
-print(f"Put price: {put_price:.2f}")
+print(f"Call option price: {option_prices['call_price']:.2f}")
+print(f"Put option price: {option_prices['put_price']:.2f}")
