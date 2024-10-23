@@ -18,18 +18,21 @@ def bsm_option_pricer(S, K, r, q, sigma, T):
             put_price: put option price
     """
 
-    call_price = calc_call_price(S, K, r, q, sigma, T)
-    call_delta = calc_delta_call(S, K, r, q, sigma, T)
-    call_theta = calc_theta_call(S, K, r, q, sigma, T)
-    call_rho = calc_rho_call(S, K, r, q, sigma, T)
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    d2 = calc_d2(d1, sigma, T)
+
+    call_price = calc_call_price(S, K, r, q, T, d1, d2)
+    call_delta = calc_delta_call(q, T, d1)
+    call_theta = calc_theta_call(S, K, r, q, sigma, T, d1, d2)
+    call_rho = calc_rho_call(K, r, T, d2)
     
-    put_price = calc_put_price(S, K, r, q, sigma, T)
-    put_delta = calc_delta_put(S, K, r, q, sigma, T)
-    put_theta = calc_theta_put(S, K, r, q, sigma, T)
-    put_rho = calc_rho_put(S, K, r, q, sigma, T)
+    put_price = calc_put_price(S, K, r, q, T, d1, d2)
+    put_delta = calc_delta_put(q, T, d1)
+    put_theta = calc_theta_put(S, K, r, q, sigma, T, d1, d2)
+    put_rho = calc_rho_put(K, r, T, d2)
     
-    gamma = calc_gamma(S, K, r, q, sigma, T)
-    vega = calc_vega(S, K, r, q, sigma, T)
+    gamma = calc_gamma(S, q, sigma, T, d1)
+    vega = calc_vega(S, q, T, d1)
     
     prices = {
         "call_price": call_price,
@@ -47,7 +50,7 @@ def bsm_option_pricer(S, K, r, q, sigma, T):
     return prices
 
 
-def calc_call_price(S, K, r, q, sigma, T):
+def calc_call_price(S, K, r, q, T, d1, d2):
     """
     Calculate the price of a European call option using the Black-Scholes-Merton formula.
     
@@ -68,17 +71,10 @@ def calc_call_price(S, K, r, q, sigma, T):
         Output:
             price: call option price
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
-    d2 = calc_d2(d1, sigma, T)
-    
-    p1 = S * math.exp(-q*T) * norm.cdf(d1)
-    p2 = K * math.exp(-r*T) * norm.cdf(d2)
-    
-    price = p1 - p2
-    
+    price = S * math.exp(-q*T) * norm.cdf(d1) - K * math.exp(-r*T) * norm.cdf(d2)
     return price
     
-def calc_put_price(S, K, r, q, sigma, T):
+def calc_put_price(S, K, r, q, T, d1, d2):
     """
     Calculate the price of a European put option using the Black-Scholes-Merton formula.
     
@@ -99,11 +95,7 @@ def calc_put_price(S, K, r, q, sigma, T):
         Output:
             price: put option price
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
-    d2 = calc_d2(d1, sigma, T)
-    
     price = K * math.exp(-r*T) * norm.cdf(-d2) - S * math.exp(-q*T) * norm.cdf(-d1)
-    
     return price
     
 def calc_d1(S, K, r, q, sigma, T):
@@ -144,7 +136,7 @@ def calc_d2(d1, sigma, T):
     return d2
 
 
-def calc_delta_call(S, K, r, q, sigma, T):
+def calc_delta_call(q, T, d1):
     """
     Calculate the delta of a European call option.
     
@@ -161,12 +153,11 @@ def calc_delta_call(S, K, r, q, sigma, T):
     Output:
         delta: delta value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
     delta = math.exp(-q*T) * norm.cdf(d1)
     return delta
 
 
-def calc_delta_put(S, K, r, q, sigma, T):
+def calc_delta_put(q, T, d1):
     """
     Calculate the delta of a European put option.
     
@@ -183,12 +174,11 @@ def calc_delta_put(S, K, r, q, sigma, T):
     Output:
         delta: delta value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
     delta = math.exp(-q*T) * (norm.cdf(d1) - 1)
     return delta
 
 
-def calc_theta_call(S, K, r, q, sigma, T):
+def calc_theta_call(S, K, r, q, sigma, T, d1, d2):
     """
     Calculate the theta of a European call option.
     A negative theta means the option price decreases as time passes.
@@ -206,13 +196,10 @@ def calc_theta_call(S, K, r, q, sigma, T):
     Output:
         theta: theta value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
-    d2 = calc_d2(d1, sigma, T)
-    
     theta = -S * math.exp(-q*T) * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) - r * K * math.exp(-r*T) * norm.cdf(d2) + q * S * math.exp(-q*T) * norm.cdf(d1)
     return theta
 
-def calc_theta_put(S, K, r, q, sigma, T):
+def calc_theta_put(S, K, r, q, sigma, T, d1, d2):
     """
     Calculate the theta of a European put option.
     A negative theta means the option price decreases as time passes.
@@ -230,13 +217,10 @@ def calc_theta_put(S, K, r, q, sigma, T):
     Output:
         theta: theta value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
-    d2 = calc_d2(d1, sigma, T)
-    
     theta = -S * math.exp(-q*T) * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) + r * K * math.exp(-r*T) * norm.cdf(-d2) - q * S * math.exp(-q*T) * norm.cdf(-d1)
     return theta
 
-def calc_rho_call(S, K, r, q, sigma, T):
+def calc_rho_call(K, r, T, d2):
     """
     Calculate the rho of a European call option.
     
@@ -253,12 +237,10 @@ def calc_rho_call(S, K, r, q, sigma, T):
     Output:
         rho: rho value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
-    d2 = calc_d2(d1, sigma, T)
     rho = K * T * math.exp(-r*T) * norm.cdf(d2)
     return rho
 
-def calc_rho_put(S, K, r, q, sigma, T):
+def calc_rho_put(K, r, T, d2):
     """
     Calculate the rho of a European put option.
     
@@ -275,12 +257,10 @@ def calc_rho_put(S, K, r, q, sigma, T):
     Output:
         rho: rho value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
-    d2 = calc_d2(d1, sigma, T)
     rho = -K * T * math.exp(-r*T) * norm.cdf(-d2)
     return rho
 
-def calc_gamma(S, K, r, q, sigma, T):
+def calc_gamma(S, q, sigma, T, d1):
     """
     Calculate the gamma of a European call or put option.
     
@@ -297,12 +277,11 @@ def calc_gamma(S, K, r, q, sigma, T):
     Output:
         gamma: gamma value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
     gamma = math.exp(-q*T) * norm.pdf(d1) / (S * sigma * math.sqrt(T))
     return gamma
     
     
-def calc_vega(S, K, r, q, sigma, T):
+def calc_vega(S, q, T, d1):
     """
     Calculate the vega of a European call or put option.
     
@@ -319,7 +298,6 @@ def calc_vega(S, K, r, q, sigma, T):
     Output:
         vega: vega value
     """
-    d1 = calc_d1(S, K, r, q, sigma, T)
     vega = S * math.exp(-q*T) * norm.pdf(d1) * math.sqrt(T)
     return vega   
     
