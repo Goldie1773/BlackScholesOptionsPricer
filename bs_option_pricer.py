@@ -19,11 +19,29 @@ def bsm_option_pricer(S, K, r, q, sigma, T):
     """
 
     call_price = calc_call_price(S, K, r, q, sigma, T)
+    call_delta = calc_delta_call(S, K, r, q, sigma, T)
+    call_theta = calc_theta_call(S, K, r, q, sigma, T)
+    call_rho = calc_rho_call(S, K, r, q, sigma, T)
+    
     put_price = calc_put_price(S, K, r, q, sigma, T)
+    put_delta = calc_delta_put(S, K, r, q, sigma, T)
+    put_theta = calc_theta_put(S, K, r, q, sigma, T)
+    put_rho = calc_rho_put(S, K, r, q, sigma, T)
+    
+    gamma = calc_gamma(S, K, r, q, sigma, T)
+    vega = calc_vega(S, K, r, q, sigma, T)
     
     prices = {
         "call_price": call_price,
-        "put_price": put_price
+        "call_delta": call_delta,
+        "call_theta": call_theta,
+        "call_rho": call_rho,
+        "put_price": put_price,
+        "put_delta": put_delta,
+        "put_theta": put_theta,
+        "put_rho": put_rho,
+        "gamma": gamma,
+        "vega": vega
     }
     
     return prices
@@ -84,10 +102,7 @@ def calc_put_price(S, K, r, q, sigma, T):
     d1 = calc_d1(S, K, r, q, sigma, T)
     d2 = calc_d2(d1, sigma, T)
     
-    p1 = K * math.exp(-r*T) * norm.cdf(-d2)
-    p2 = S * math.exp(-q*T) * norm.cdf(-d1)
-    
-    price = p1 - p2
+    price = K * math.exp(-r*T) * norm.cdf(-d2) - S * math.exp(-q*T) * norm.cdf(-d1)
     
     return price
     
@@ -129,14 +144,205 @@ def calc_d2(d1, sigma, T):
     return d2
 
 
+def calc_delta_call(S, K, r, q, sigma, T):
+    """
+    Calculate the delta of a European call option.
+    
+    delta = e^(-q*T) * N(d1)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        delta: delta value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    delta = math.exp(-q*T) * norm.cdf(d1)
+    return delta
+
+
+def calc_delta_put(S, K, r, q, sigma, T):
+    """
+    Calculate the delta of a European put option.
+    
+    delta = e^(-q*T) * (N(d1) - 1)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        delta: delta value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    delta = math.exp(-q*T) * (norm.cdf(d1) - 1)
+    return delta
+
+
+def calc_theta_call(S, K, r, q, sigma, T):
+    """
+    Calculate the theta of a European call option.
+    A negative theta means the option price decreases as time passes.
+    
+    theta = -S * e^(-q*T) * n(d1) * sigma / (2 * sqrt(T)) - r * K * e^(-r*T) * N(d2) + q * S * e^(-q*T) * N(d1)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        theta: theta value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    d2 = calc_d2(d1, sigma, T)
+    
+    theta = -S * math.exp(-q*T) * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) - r * K * math.exp(-r*T) * norm.cdf(d2) + q * S * math.exp(-q*T) * norm.cdf(d1)
+    return theta
+
+def calc_theta_put(S, K, r, q, sigma, T):
+    """
+    Calculate the theta of a European put option.
+    A negative theta means the option price decreases as time passes.
+    
+    theta = -S * e^(-q*T) * n(d1) * sigma / (2 * sqrt(T)) + r * K * e^(-r*T) * N(-d2) - q * S * e^(-q*T) * N(-d1)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        theta: theta value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    d2 = calc_d2(d1, sigma, T)
+    
+    theta = -S * math.exp(-q*T) * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) + r * K * math.exp(-r*T) * norm.cdf(-d2) - q * S * math.exp(-q*T) * norm.cdf(-d1)
+    return theta
+
+def calc_rho_call(S, K, r, q, sigma, T):
+    """
+    Calculate the rho of a European call option.
+    
+    rho = K * T * e^(-r*T) * N(d2)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        rho: rho value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    d2 = calc_d2(d1, sigma, T)
+    rho = K * T * math.exp(-r*T) * norm.cdf(d2)
+    return rho
+
+def calc_rho_put(S, K, r, q, sigma, T):
+    """
+    Calculate the rho of a European put option.
+    
+    rho = -K * T * e^(-r*T) * N(-d2)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        rho: rho value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    d2 = calc_d2(d1, sigma, T)
+    rho = -K * T * math.exp(-r*T) * norm.cdf(-d2)
+    return rho
+
+def calc_gamma(S, K, r, q, sigma, T):
+    """
+    Calculate the gamma of a European call or put option.
+    
+    gamma = e^(-q*T) * n(d1) / (S * sigma * sqrt(T))
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        gamma: gamma value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    gamma = math.exp(-q*T) * norm.pdf(d1) / (S * sigma * math.sqrt(T))
+    return gamma
+    
+    
+def calc_vega(S, K, r, q, sigma, T):
+    """
+    Calculate the vega of a European call or put option.
+    
+    vega = S * e^(-q*T) * n(d1) * sqrt(T)
+    
+    args:
+        S: stock price
+        K: strike price
+        r: risk-free rate
+        q: dividend yield
+        sigma: volatility
+        T: time to expiration
+    
+    Output:
+        vega: vega value
+    """
+    d1 = calc_d1(S, K, r, q, sigma, T)
+    vega = S * math.exp(-q*T) * norm.pdf(d1) * math.sqrt(T)
+    return vega   
+    
+
 underlying_price = 100
 strike_price = 102.8
 volatility = 0.15
 risk_free_rate = 0.05
 dividend_yield = 0.03
-time_to_expiration = 1/24
+time_to_expiration = 1 # in years
 
 option_prices = bsm_option_pricer(underlying_price, strike_price, risk_free_rate, dividend_yield, volatility, time_to_expiration)
 
-print(f"Call option price: {option_prices['call_price']:.2f}")
-print(f"Put option price: {option_prices['put_price']:.2f}")
+print(f"Call option price: {option_prices['call_price']:.2f}, delta: {option_prices['call_delta']:.3f}, theta: {option_prices['call_theta']:.3f}, rho: {option_prices['call_rho']:.3f}")
+print(f"Put option price: {option_prices['put_price']:.2f}, delta: {option_prices['put_delta']:.3f}, theta: {option_prices['put_theta']:.3f}, rho: {option_prices['put_rho']:.3f}")
+print(f"Gamma: {option_prices['gamma']:.3f}, Vega: {option_prices['vega']:.3f}")
+
+
+
+"""
+To Do:
+1. Add greeks calculation to the option pricer - completed
+2. Add user interface to the option pricer using Streamlit
+3. Add heatmap on the effect of volaility and the underlying price on the option price
+4. Add purchase price to show PnL in the heatmap
+"""
