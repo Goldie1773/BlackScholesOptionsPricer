@@ -309,16 +309,16 @@ def format_number(value, decimal_places):
 # Utility function to automatically update option prices
 def update_values(bsm_option_pricer):
     st.session_state.decimal_places = st.session_state.get("decimal_places", 2)
+    st.session_state.purchase_price = st.session_state.get("purchase_price")
     st.session_state.option_prices = bsm_option_pricer(
         st.session_state.underlying_price,
         st.session_state.strike_price,
         st.session_state.risk_free_rate,
         st.session_state.dividend_yield,
         st.session_state.volatility,
-        st.session_state.time_to_expiration
+        st.session_state.time_to_expiration,
     )
-
-
+    
 # Streamlit app
 st.title("Black-Scholes-Merton Option Pricer")
 
@@ -330,7 +330,9 @@ h1:hover a, h2:hover a, h3:hover a, h4:hover a, h5:hover a, h6:hover a {
 }
 </style>
 """
+  
 st.markdown(hide_links_css, unsafe_allow_html=True)
+
 
 # Initialize session state for reset flag
 if "reset" not in st.session_state:
@@ -349,7 +351,7 @@ default_values = {
     "risk_free_rate": 0.05,
     "dividend_yield": 0.00,
     "volatility": 0.2,
-    "time_to_expiration": 1.0,
+    "time_to_expiration": 1.0
 }
 
 # Input fields with reset logic
@@ -360,15 +362,19 @@ dividend_yield = default_values["dividend_yield"] if st.session_state.reset else
 volatility = default_values["volatility"] if st.session_state.reset else st.session_state.get("volatility", default_values["volatility"])
 time_to_expiration = default_values["time_to_expiration"] if st.session_state.reset else st.session_state.get("time_to_expiration", default_values["time_to_expiration"])
 
-st.session_state.underlying_price = st.number_input("Stock Price (S)", value=underlying_price, min_value=0.0, step=10.0)
-st.session_state.strike_price = st.number_input("Strike Price (K)", value=strike_price, min_value=0.0, step=10.0)
-st.session_state.risk_free_rate = st.number_input("Risk-Free Rate (r)", value=risk_free_rate)
-st.session_state.dividend_yield = st.number_input("Dividend Yield (q)", value=dividend_yield, min_value=0.00, max_value=1.00, format="%.2f")
-st.session_state.volatility = st.number_input("Volatility (σ)", value=volatility, min_value=0.01, max_value=1.00, format="%.2f")
-st.session_state.time_to_expiration = st.number_input("Time to Expiration (T) in years", value=time_to_expiration, min_value=0.01, step=0.25)
+input_col1, input_col2 = st.columns(2)
 
+with input_col1:
+    st.session_state.underlying_price = st.number_input("Stock Price (S)", value=underlying_price, min_value=0.0, step=10.0)
+    st.session_state.strike_price = st.number_input("Strike Price (K)", value=strike_price, min_value=0.0, step=10.0)
+    st.session_state.risk_free_rate = st.number_input("Risk-Free Rate (r)", value=risk_free_rate)
+    
+with input_col2:
+    st.session_state.dividend_yield = st.number_input("Dividend Yield (q)", value=dividend_yield, min_value=0.00, max_value=1.00, format="%.2f")
+    st.session_state.volatility = st.number_input("Volatility (σ)", value=volatility, min_value=0.01, max_value=1.00, format="%.2f")
+    st.session_state.time_to_expiration = st.number_input("Time to Expiration (T) in years", value=time_to_expiration, min_value=0.01, step=0.25)
 
-button_col1, button_col2 = st.columns(2)
+button_col1, button_col2, button_col3, button_col4, button_col5, button_col6 = st.columns((0.15, 0.15, 0.1, 0.1, 0.15, 0.20))
 
 # Calculate button
 with button_col1:
@@ -388,10 +394,23 @@ with button_col2:
     if st.button("Reset"):
         st.session_state.reset = True  # Mark reset as True if button is pressed
         st.session_state.option_prices = None  # Reset the option prices
+        st.session_state.purchase_price = None  # Reset the purchase price
         st.session_state.calculate_pressed = False  # Reset the calculate flag
         st.rerun()  # Trigger a rerun
     else:
         st.session_state.reset = False  # Reset the reset flag
+
+with button_col3:
+    st.write("Option Type")
+
+with button_col4:
+    purchase_type = st.radio("", ["Call", "Put"], label_visibility="collapsed")
+
+with button_col5:
+    st.write("Purchase Price")
+
+with button_col6:
+    st.session_state.purchase_price = st.number_input('', value=None, min_value=0.00, step=1.00, format="%.2f", label_visibility="collapsed")
 
 
 if st.session_state.calculate_pressed:
@@ -399,38 +418,47 @@ if st.session_state.calculate_pressed:
         
 # Display results if available
 if st.session_state.option_prices is not None:
-    # Slider for selecting the number of decimal places
-    decimal_places = st.slider("Decimal Places", min_value=0, max_value=6, value=st.session_state.decimal_places, key='decimal_places', on_change=update_values(bsm_option_pricer))
-
     option_prices = st.session_state.option_prices
     
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.subheader("Call Option")
-        st.write(f"Price: {format_number(option_prices['call_price'], decimal_places)}")
-        st.write(f"Delta: {format_number(option_prices['call_delta'], decimal_places)}")
-        st.write(f"Theta: {format_number(option_prices['call_theta'], decimal_places)}")
-        st.write(f"Rho: {format_number(option_prices['call_rho'], decimal_places)}")
+        st.write(f"Price: {format_number(option_prices['call_price'], st.session_state.decimal_places)}")
+        st.write(f"Delta: {format_number(option_prices['call_delta'], st.session_state.decimal_places)}")
+        st.write(f"Theta: {format_number(option_prices['call_theta'], st.session_state.decimal_places)}")
+        st.write(f"Rho: {format_number(option_prices['call_rho'], st.session_state.decimal_places)}")
 
     with col2:
         st.subheader("Put Option")
-        st.write(f"Price: {format_number(option_prices['put_price'], decimal_places)}")
-        st.write(f"Delta: {format_number(option_prices['put_delta'], decimal_places)}")
-        st.write(f"Theta: {format_number(option_prices['put_theta'], decimal_places)}")
-        st.write(f"Rho: {format_number(option_prices['put_rho'], decimal_places)}")
+        st.write(f"Price: {format_number(option_prices['put_price'], st.session_state.decimal_places)}")
+        st.write(f"Delta: {format_number(option_prices['put_delta'], st.session_state.decimal_places)}")
+        st.write(f"Theta: {format_number(option_prices['put_theta'], st.session_state.decimal_places)}")
+        st.write(f"Rho: {format_number(option_prices['put_rho'], st.session_state.decimal_places)}")
     
     with col3:
         st.subheader("Common Greeks")
-        st.write(f"Gamma: {format_number(option_prices['gamma'], decimal_places)}")
-        st.write(f"Vega: {format_number(option_prices['vega'], decimal_places)}")
-
-# To run the app, use the command: streamlit run app.py
+        st.write(f"Gamma: {format_number(option_prices['gamma'], st.session_state.decimal_places)}")
+        st.write(f"Vega: {format_number(option_prices['vega'], st.session_state.decimal_places)}")
+    
+    # Slider for selecting the number of decimal places
+    decimal_places_slider = st.slider("Decimal Places", min_value=0, max_value=6, value=st.session_state.decimal_places, key='decimal_places', on_change=update_values(bsm_option_pricer))
+    
+    if st.session_state.purchase_price not in [0.0, None]:
+        st.subheader("Profit and Loss")
+        if purchase_type == "Call":
+            pnl = option_prices['call_price'] - st.session_state.purchase_price
+        else:    
+            pnl = option_prices['put_price'] - st.session_state.purchase_price
+        color = "green" if pnl > 0 else "red"
+        st.write(f"PnL: :{color}[**{format_number(pnl, st.session_state.decimal_places)}**]")
+    
+# To run the app, use the command: streamlit run bs_option_pricer.py
 
 # To Do:
 # 1. Add greeks calculation to the option pricer - completed
 # 2. Add user interface to the option pricer using Streamlit - halfway
 # 3. Add a reset button to the option pricer - completed
-# 4. Add a purchase price option that allows users to see the PnL against options - not started
 # 5. Add heatmap on the effect of volaility and the underlying price on the option price - not started
 # 6. Add show purchase price PnL in the heatmap - not started
+# 4. Add a purchase price option that allows users to see the PnL against options - not 
