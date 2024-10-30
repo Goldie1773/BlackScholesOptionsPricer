@@ -1,6 +1,11 @@
 import math
 from scipy.stats import norm
 import streamlit as st
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm
 
 def bsm_option_pricer(S, K, r, q, sigma, T):
     """
@@ -311,14 +316,14 @@ def update_values(bsm_option_pricer):
     st.session_state.decimal_places = st.session_state.get("decimal_places", 2)
     st.session_state.purchase_price = st.session_state.get("purchase_price")
     st.session_state.option_prices = bsm_option_pricer(
-        st.session_state.underlying_price,
-        st.session_state.strike_price,
-        st.session_state.risk_free_rate,
-        st.session_state.dividend_yield,
-        st.session_state.volatility,
-        st.session_state.time_to_expiration,
+        underlying_price,
+        strike_price,
+        risk_free_rate,
+        dividend_yield,
+        volatility,
+        time_to_expiration,
     )
-    
+       
 # Streamlit app
 st.title("Black-Scholes-Merton Option Pricer")
 
@@ -335,86 +340,43 @@ st.markdown(hide_links_css, unsafe_allow_html=True)
 
 
 # Initialize session state for reset flag
-if "reset" not in st.session_state:
-    st.session_state.reset = False
 if "option_prices" not in st.session_state:
     st.session_state.option_prices = None
 if "decimal_places" not in st.session_state:
     st.session_state.decimal_places = 2
-if "calculate_pressed" not in st.session_state:
-    st.session_state.calculate_pressed = False
     
 # Default values
 default_values = {
-    "underlying_price": 100.0,
-    "strike_price": 100.0,
+    "underlying_price": 100.00,
+    "strike_price": 100.00,
     "risk_free_rate": 0.05,
     "dividend_yield": 0.00,
-    "volatility": 0.2,
-    "time_to_expiration": 1.0
+    "volatility": 0.20,
+    "time_to_expiration": 1.0,
+    "purchase_price": 0.00
 }
-
-# Input fields with reset logic
-underlying_price = default_values["underlying_price"] if st.session_state.reset else st.session_state.get("underlying_price", default_values["underlying_price"])
-strike_price = default_values["strike_price"] if st.session_state.reset else st.session_state.get("strike_price", default_values["strike_price"])
-risk_free_rate = default_values["risk_free_rate"] if st.session_state.reset else st.session_state.get("risk_free_rate", default_values["risk_free_rate"])
-dividend_yield = default_values["dividend_yield"] if st.session_state.reset else st.session_state.get("dividend_yield", default_values["dividend_yield"])
-volatility = default_values["volatility"] if st.session_state.reset else st.session_state.get("volatility", default_values["volatility"])
-time_to_expiration = default_values["time_to_expiration"] if st.session_state.reset else st.session_state.get("time_to_expiration", default_values["time_to_expiration"])
 
 input_col1, input_col2 = st.columns(2)
 
 with input_col1:
-    st.session_state.underlying_price = st.number_input("Stock Price (S)", value=underlying_price, min_value=0.0, step=10.0)
-    st.session_state.strike_price = st.number_input("Strike Price (K)", value=strike_price, min_value=0.0, step=10.0)
-    st.session_state.risk_free_rate = st.number_input("Risk-Free Rate (r)", value=risk_free_rate)
+    underlying_price = st.number_input("Stock Price (S)", value=default_values["underlying_price"], min_value=0.0, step=10.0)
+    strike_price = st.number_input("Strike Price (K)", value=default_values["strike_price"], min_value=0.0, step=10.0)
+    risk_free_rate = st.number_input("Risk-Free Rate (r)", value=default_values["risk_free_rate"])
     
 with input_col2:
-    st.session_state.dividend_yield = st.number_input("Dividend Yield (q)", value=dividend_yield, min_value=0.00, max_value=1.00, format="%.2f")
-    st.session_state.volatility = st.number_input("Volatility (σ)", value=volatility, min_value=0.01, max_value=1.00, format="%.2f")
-    st.session_state.time_to_expiration = st.number_input("Time to Expiration (T) in years", value=time_to_expiration, min_value=0.01, step=0.25)
-
-button_col1, button_col2, button_col3, button_col4, button_col5, button_col6 = st.columns((0.15, 0.15, 0.1, 0.1, 0.15, 0.20))
-
-# Calculate button
-with button_col1:
-    if st.button("Calculate"):
-        st.session_state.option_prices = bsm_option_pricer(
-            st.session_state.underlying_price,
-            st.session_state.strike_price,
-            st.session_state.risk_free_rate,
-            st.session_state.dividend_yield,
-            st.session_state.volatility,
-            st.session_state.time_to_expiration
-        )
-        st.session_state.calculate_pressed = True
-
-# Reset button
-with button_col2:
-    if st.button("Reset"):
-        st.session_state.reset = True  # Mark reset as True if button is pressed
-        st.session_state.option_prices = None  # Reset the option prices
-        st.session_state.purchase_price = None  # Reset the purchase price
-        st.session_state.calculate_pressed = False  # Reset the calculate flag
-        st.rerun()  # Trigger a rerun
-    else:
-        st.session_state.reset = False  # Reset the reset flag
-
-with button_col3:
-    st.write("Option Type")
-
-with button_col4:
-    purchase_type = st.radio("", ["Call", "Put"], label_visibility="collapsed")
-
-with button_col5:
-    st.write("Purchase Price")
-
-with button_col6:
-    st.session_state.purchase_price = st.number_input('', value=None, min_value=0.00, step=1.00, format="%.2f", label_visibility="collapsed")
+    dividend_yield = st.number_input("Dividend Yield (q)", value=default_values["dividend_yield"], min_value=0.00, max_value=1.00, format="%.2f")
+    volatility = st.number_input("Volatility (σ)", value=default_values["volatility"], min_value=0.01, max_value=1.00, format="%.2f")
+    time_to_expiration = st.number_input("Time to Expiration (T) in years", value=default_values["time_to_expiration"], min_value=0.01, step=0.25)
 
 
-if st.session_state.calculate_pressed:
-    update_values(bsm_option_pricer)
+st.session_state.option_prices = bsm_option_pricer(
+    underlying_price,
+    strike_price,
+    risk_free_rate,
+    dividend_yield,
+    volatility,
+    time_to_expiration
+)
         
 # Display results if available
 if st.session_state.option_prices is not None:
@@ -444,21 +406,110 @@ if st.session_state.option_prices is not None:
     # Slider for selecting the number of decimal places
     decimal_places_slider = st.slider("Decimal Places", min_value=0, max_value=6, value=st.session_state.decimal_places, key='decimal_places', on_change=update_values(bsm_option_pricer))
     
-    if st.session_state.purchase_price not in [0.0, None]:
-        st.subheader("Profit and Loss")
-        if purchase_type == "Call":
-            pnl = option_prices['call_price'] - st.session_state.purchase_price
-        else:    
-            pnl = option_prices['put_price'] - st.session_state.purchase_price
-        color = "green" if pnl > 0 else "red"
-        st.write(f"PnL: :{color}[**{format_number(pnl, st.session_state.decimal_places)}**]")
-    
-# To run the app, use the command: streamlit run bs_option_pricer.py
+button_pp, button_pp_inp, button_op, button_pt, check_show_heatmap = st.columns((0.15, 0.3, 0.1, 0.2, 0.3))
 
-# To Do:
-# 1. Add greeks calculation to the option pricer - completed
-# 2. Add user interface to the option pricer using Streamlit - halfway
-# 3. Add a reset button to the option pricer - completed
-# 5. Add heatmap on the effect of volaility and the underlying price on the option price - not started
-# 6. Add show purchase price PnL in the heatmap - not started
-# 4. Add a purchase price option that allows users to see the PnL against options - not 
+with button_pp:
+    st.write("Purchase Price")
+
+with button_pp_inp:
+    purchase_price = st.number_input('', value=None, min_value=0.00, step=1.00, format="%.2f", label_visibility="collapsed")
+
+with button_op:
+    st.write("Option Type")
+
+with button_pt:
+    purchase_type = st.radio("", ["Call", "Put"], label_visibility="collapsed")
+
+with check_show_heatmap:
+    if purchase_price in [None, 0.00]:
+        show_heatmap = st.toggle("Show Heatmap", value=False, disabled=True)
+    else:
+        show_heatmap = st.toggle("Show Heatmap", value=False)
+
+    
+if purchase_price not in [None, 0.00]:
+    st.subheader("Profit and Loss")
+    if purchase_type == "Call":
+        pnl = option_prices['call_price'] - purchase_price
+    else:    
+        pnl = option_prices['put_price'] - purchase_price
+    color = "green" if pnl > 0 else "red"
+    st.write(f"PnL: :{color}[**{format_number(pnl, st.session_state.decimal_places)}**]")
+    
+    if show_heatmap:
+        # Generate ranges for strike price and volatility
+        strike_prices = np.linspace(strike_price * 0.25, strike_price * 1.75, 15)
+        volatilities = np.linspace(volatility * 0.25, volatility * 1.75, 15)
+
+        # Round the strike_prices and volatilities before using them
+        strike_prices_rounded = np.round(strike_prices, 2)
+        volatilities_rounded = np.round(volatilities, 2)
+
+        # Initialize a DataFrame to store PnL values with rounded indices and columns
+        pnl_data = pd.DataFrame(index=volatilities_rounded, columns=strike_prices_rounded)
+
+        # Calculate PnL for each combination using rounded values
+        for vol in volatilities_rounded:
+            for K in strike_prices_rounded:
+                option_prices = bsm_option_pricer(
+                    underlying_price,
+                    K,
+                    risk_free_rate,
+                    dividend_yield,
+                    vol,
+                    time_to_expiration
+                )
+                if purchase_type == 'Call':
+                    pnl = option_prices['call_price'] - purchase_price
+                else:
+                    pnl = option_prices['put_price'] - purchase_price
+                pnl_data.at[vol, K] = pnl
+
+        # Ensure pnl_data is of numeric type and round values to 2 decimal places
+        pnl_data = pnl_data.astype(float).round(2)
+
+        # Handle any missing values (if necessary)
+        pnl_data.fillna(0, inplace=True)  # Replace NaN with zeros
+        
+        # Calculate minimum PnL value and maximum absolute PnL value for symmetric scaling
+        min_pnl = pnl_data.min().min()
+        max_pnl = pnl_data.max().max()
+
+        max_abs_pnl = max(abs(min_pnl), abs(max_pnl))
+        norm = TwoSlopeNorm(vmin=min_pnl, vcenter=0, vmax=max_abs_pnl)
+
+        # Create the heatmap with adjusted parameters
+        fig, ax = plt.subplots(figsize=(10, 10))
+        sns.heatmap(
+            pnl_data,
+            ax=ax,
+            cmap='RdYlGn',
+            norm=norm,
+            annot=True,
+            fmt=".2f",
+            linecolor='black',
+            cbar=False,
+        )
+        
+        # Calculate the middle cell indices
+        num_rows, num_cols = pnl_data.shape
+        mid_row = num_rows // 2
+        mid_col = num_cols // 2
+
+        # Highlight the middle cell's annotation
+        for text in ax.texts:
+            x, y = text.get_position()
+            col_idx = int(x - 0.5)
+            row_idx = int(y - 0.5)
+            if col_idx == mid_col and row_idx == mid_row:
+                text.set_backgroundcolor('blue')
+                text.set_color('white')
+                break
+            
+        ax.set_xlabel('Strike Price (K)', fontweight='bold')
+        ax.set_ylabel('Volatility (σ)', fontweight='bold')
+        ax.set_title('PnL Heatmap', fontweight='bold', fontsize=16)
+
+        st.pyplot(fig)
+                    
+# To run the app, use the command: streamlit run bs_option_pricer.py
