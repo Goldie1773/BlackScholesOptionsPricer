@@ -306,8 +306,6 @@ def calc_vega(S, q, T, d1):
     vega = S * math.exp(-q*T) * norm.pdf(d1) * math.sqrt(T)
     return vega 
 
-'''Streamlit functions below'''
-
 
 # Utility function to format numbers
 def format_number(value, decimal_places):
@@ -333,49 +331,20 @@ def update_values(bsm_option_pricer):
 # Function to insert values into the Neon database
 def insert_input(session, stock_price, strike_price, interest_rate, volatility, time_to_expiry):
     try:
-        # Round values to 6 decimal places for consistency
-        stock_price = round(float(stock_price), 6)
-        strike_price = round(float(strike_price), 6)
-        interest_rate = round(float(interest_rate), 6)
-        volatility = round(float(volatility), 6)
-        time_to_expiry = round(float(time_to_expiry), 6)
-        
-        # Check if the input already exists
-        select_query = text("""
-            SELECT CalcID FROM Inputs
-            WHERE StockPrice = :stock_price
-              AND StrikePrice = :strike_price
-              AND InterestRate = :interest_rate
-              AND Volatility = :volatility
-              AND TimeToExpiry = :time_to_expiry
+        insert_input_query = text("""
+            INSERT INTO Inputs (StockPrice, StrikePrice, InterestRate, Volatility, TimeToExpiry)
+            VALUES (:stock_price, :strike_price, :interest_rate, :volatility, :time_to_expiry)
+            RETURNING CalcID
         """)
-        
-        result = session.execute(select_query, {
-            'stock_price': stock_price,
-            'strike_price': strike_price,
-            'interest_rate': interest_rate,
-            'volatility': volatility,
-            'time_to_expiry': time_to_expiry
-        }).fetchone()
-        
-        if result: # If the input already exists use the existing CalcID
-            calc_id = result[0]
-        else:
-            # Insert new input
-            insert_query = text("""
-                INSERT INTO Inputs (StockPrice, StrikePrice, InterestRate, Volatility, TimeToExpiry)
-                VALUES (:stock_price, :strike_price, :interest_rate, :volatility, :time_to_expiry)
-                RETURNING CalcID
-            """)
-            new_calc_id = session.execute(insert_query, {
-                'stock_price': stock_price,
-                'strike_price': strike_price,
-                'interest_rate': interest_rate,
-                'volatility': volatility,
-                'time_to_expiry': time_to_expiry
-            }).fetchone()
-            calc_id = new_calc_id[0]
-        
+        result = session.execute(insert_input_query, {
+            'stock_price': round(float(stock_price), 6),
+            'strike_price': round(float(strike_price), 6),
+            'interest_rate': round(float(interest_rate), 6),
+            'volatility': round(float(volatility), 6),
+            'time_to_expiry': round(float(time_to_expiry), 6)
+        })
+        calc_id = result.fetchone()[0]
+        session.commit()
         return calc_id
     except Exception as e:
         session.rollback()
@@ -385,45 +354,19 @@ def insert_input(session, stock_price, strike_price, interest_rate, volatility, 
 # Function to insert option prices into the Neon database
 def insert_output(session, volatility_shock, stock_price_shock, option_price, is_call_or_put, calc_id):
     try:
-        # Round values to 6 decimal places for consistency
-        volatility_shock = round(float(volatility_shock), 6)
-        stock_price_shock = round(float(stock_price_shock), 6)
-        option_price = round(float(option_price), 6)
-        
-        # Check if the output already exists
-        select_query = text("""
-            SELECT CalcOutputID FROM Outputs
-            WHERE VolatilityShock = :volatility_shock
-              AND StockPriceShock = :stock_price_shock
-              AND CalcID = :calc_id
+        insert_output_query = text("""
+            INSERT INTO Outputs (VolatilityShock, StockPriceShock, OptionPrice, IsCallOrPut, CalcID)
+            VALUES (:volatility_shock, :stock_price_shock, :option_price, :is_call_or_put, :calc_id)
         """)
-        result = session.execute(select_query, {
-            'volatility_shock': volatility_shock,
-            'stock_price_shock': stock_price_shock,
-            'calc_id': calc_id
-        }).fetchone()
-        
-        if result:
-            calc_output_id = result[0]
-        else:
-            # Insert new output
-            insert_query = text("""
-                INSERT INTO Outputs (VolatilityShock, StockPriceShock, OptionPrice, IsCallOrPut, CalcID)
-                VALUES (:volatility_shock, :stock_price_shock, :option_price, :is_call_or_put, :calc_id)
-                RETURNING CalcOutputID
-            """)
-            new_calc_output_id = session.execute(insert_query, {
-                'volatility_shock': volatility_shock,
-                'stock_price_shock': stock_price_shock,
-                'option_price': option_price,
-                'is_call_or_put': is_call_or_put,
-                'calc_id': calc_id
-            }).fetchone()
-            calc_output_id = new_calc_output_id[0]
-        return calc_output_id
+        session.execute(insert_output_query, {
+            'volatility_shock': round(float(volatility_shock), 6),
+            'stock_price_shock': round(float(stock_price_shock), 6),
+            'option_price': round(float(option_price), 6),
+            'is_call_or_put': is_call_or_put,  # Should be 'Call' or 'Put'
+            'calc_id': int(calc_id)
+        })
     except Exception as e:
         session.rollback()
-        return None
    
 # Streamlit app
 st.title("Black-Scholes-Merton Option Pricer")
@@ -548,36 +491,41 @@ if purchase_price not in [None, 0.00]:
         strike_prices = np.linspace(strike_price * 0.25, strike_price * 1.75, 15)
         volatilities = np.linspace(volatility * 0.25, volatility * 1.75, 15)
 
-        # Round the strike_prices and volatilities before using them
-        strike_prices_rounded = np.round(strike_prices, 2)
-        volatilities_rounded = np.round(volatilities, 2)
+        # Round the strike_prices and volatilities for database insertion (6 decimal places)
+        strike_prices_db = np.round(strike_prices, 6)
+        volatilities_db = np.round(volatilities, 6)
+        
+        # Round the strike_prices and volatilities for display purposes (2 decimal places)
+        strike_prices_display = np.round(strike_prices, 2)
+        volatilities_display = np.round(volatilities, 2)
 
-        # Initialize a DataFrame to store PnL values with rounded indices and columns
-        pnl_data = pd.DataFrame(index=volatilities_rounded, columns=strike_prices_rounded)
+        # Initialize a DataFrame to store PnL values with rounded indices and columns for display
+        pnl_data = pd.DataFrame(index=volatilities_display, columns=strike_prices_display)
 
         # Insert the input and get CalcID
         calc_id = insert_input(session, underlying_price, strike_price, risk_free_rate, volatility, time_to_expiration)
         
-
-        # Calculate PnL for each combination using rounded values
-        for vol in volatilities_rounded:
-            for K in strike_prices_rounded:
+       # Calculate PnL for each combination using high precision values
+        for vol_db, vol_disp in zip(volatilities_db, volatilities_display):
+            for K_db, K_disp in zip(strike_prices_db, strike_prices_display):
                 option_prices = bsm_option_pricer(
                     underlying_price,
-                    K,
+                    K_db,
                     risk_free_rate,
                     dividend_yield,
-                    vol,
+                    vol_db,
                     time_to_expiration
                 )
                 if purchase_type == 'Call':
                     pnl = option_prices['call_price'] - purchase_price
                 else:
                     pnl = option_prices['put_price'] - purchase_price
-                pnl_data.at[vol, K] = pnl
                 
-                # Insert into Outputs
-                insert_output(session, vol, K, pnl, purchase_type, calc_id)
+                # Store PnL in DataFrame with display precision
+                pnl_data.at[vol_disp, K_disp] = pnl
+                
+                # Insert into Outputs with high precision values
+                insert_output(session, vol_db, K_db, pnl, purchase_type, calc_id)
 
         session.commit()
         
@@ -628,5 +576,5 @@ if purchase_price not in [None, 0.00]:
 
         st.pyplot(fig)
 
-session.close()                  
+        session.close()                  
 # To run the app, use the command: streamlit run bs_option_pricer.py
